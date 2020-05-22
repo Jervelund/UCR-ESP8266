@@ -33,7 +33,7 @@ void setup()
 
   pinMode(LED_BUILTIN, OUTPUT);
 
-  ucr.name("UCR-Traxxas");
+  ucr.setName("UCR-Traxxas");
   ucr.addButton("LED", 0);
   ucr.addAxis("Accelerator", ACCELERATOR);
   ucr.addAxis("Steering", STEERING);

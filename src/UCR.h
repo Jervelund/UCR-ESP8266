@@ -18,7 +18,7 @@ public:
   void begin();
   bool update();
   void resetValues();
-  void name(const char *name);
+  void setName(const char *name);
 
   void addButton(const char *name, int index);
   void addAxis(const char *name, int index);

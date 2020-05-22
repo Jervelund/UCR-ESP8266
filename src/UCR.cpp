@@ -16,8 +16,8 @@
 #define EVENTS "Events"
 
 #define MSG_HEARTBEAT 0
-#define MSG_DESCRIPTOR 1
-#define MSG_DATA 2
+#define MSG_REQUEST_DESCRIPTOR_LIST 1
+#define MSG_REQUEST_DATA 2
 
 UCR::UCR(const char *ssid, const char *password)
 {
@@ -89,7 +89,7 @@ void UCR::setupMDNS()
     MDNS.addService("ucr", "udp", _localPort);
 }
 
-void UCR::name(const char *name)
+void UCR::setName(const char *name)
 {
     strncpy(_name, name, (sizeof(_name) - 1));
 }
@@ -163,14 +163,14 @@ void UCR::resetValues(){
 
 void addDescriptorList(JsonDocument *doc, const char *name, const char **list, int size)
 {
-    JsonArray buttons = doc->createNestedArray(name);
+    JsonArray descriptor_array = doc->createNestedArray(name);
     for (int i = 0; i < size; i++)
     {
         if (list[i] != nullptr)
         {
-            JsonObject button = buttons.createNestedObject();
-            button["Name"] = list[i];
-            button["Value"] = i;
+            JsonObject descriptor = descriptor_array.createNestedObject();
+            descriptor["Name"] = list[i];
+            descriptor["Value"] = i;
         }
     }
 }
@@ -208,7 +208,7 @@ bool UCR::receiveUdp()
         StaticJsonDocument<500> response;
         response["MsgType"] = msgType;
 
-        if (msgType == 1)
+        if (msgType == MSG_REQUEST_DESCRIPTOR_LIST)
         {
             addDescriptorList(&response, BUTTONS, _buttonList, BUTTON_COUNT);
             addDescriptorList(&response, AXES, _axisList, AXIS_COUNT);
@@ -219,7 +219,7 @@ bool UCR::receiveUdp()
             D(Serial.println());
         }
 
-        if (msgType == 2)
+        if (msgType == MSG_REQUEST_DATA)
         {
             for(JsonObject o : request[BUTTONS].as<JsonArray>()){
                 buttonData[o["Index"].as<int>()] = o["Value"].as<bool>();
