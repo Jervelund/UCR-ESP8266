@@ -46,6 +46,10 @@ UCR::UCR(const char *ssid, const char *password, uint16_t port)
     _port = port;
 }
 
+bool UCR::connectionAlive(){
+    return millis() - _lastReceiveMillis < _timeout;
+}
+
 void UCR::setTimeout(unsigned long timeout)
 {
     _timeout = timeout;
@@ -127,109 +131,6 @@ void UCR::setUpdateRate(uint16_t miliseconds) {
     _updateRate = miliseconds;
 }
 
-void UCR::addInputButton(const char *name, int index)
-{
-    if (index >= UCR_IN_BUTTON_COUNT) return;
-    _inButtonList[index] = name;
-}
-
-void UCR::addInputAxis(const char *name, int index)
-{
-    if (index >= UCR_IN_AXIS_COUNT) return;
-    _inAxisList[index] = name;
-}
-
-void UCR::addInputDelta(const char *name, int index)
-{
-    if (index >= UCR_IN_DELTA_COUNT) return;
-    _inDeltaList[index] = name;
-}
-
-void UCR::addInputEvent(const char *name, int index)
-{
-    if (index >= UCR_IN_EVENT_COUNT) return;
-    _inEventList[index] = name;
-}
-
-void UCR::writeButton(int index, bool value){
-    if (index >= UCR_IN_BUTTON_COUNT) return;
-    if (inButtonData[index] == value) return;
-    inButtonData[index] = value;
-    _inputDirty = 1;
-    if(_bindMode) sendBindResponse(index, "b", value);
-}
-
-void UCR::writeAxis(int index, short value){
-    if (index >= UCR_IN_AXIS_COUNT) return;
-    if (inAxisData[index] == value) return;
-    inAxisData[index] = value;
-    _inputDirty = 1;
-    if(_bindMode) sendBindResponse(index, "a", value);
-}
-
-void UCR::writeDelta(int index, short value){
-    if (index >= UCR_IN_DELTA_COUNT) return;
-    if (inDeltaData[index] == value) return;
-    inDeltaData[index] = value;
-    _inputDirty = 1;
-    if(_bindMode) sendBindResponse(index, "d", value);
-}
-
-void UCR::writeEvent(int index, bool value){
-    // IDEA: Add option to use event as flag (that should be cleared, this allows us to call multiple .update()s/receive new packets without missing an event). This won't help in case of dropped UDP packets, as we'll never know about the event.
-    if (index >= UCR_IN_EVENT_COUNT) return;
-    if (inEventData[index] == value) return;
-    inEventData[index] = value;
-    _inputDirty = 1;
-    if(_bindMode) sendBindResponse(index, "e", value);
-
-}
-
-void UCR::addOutputButton(const char *name, int index)
-{
-    if (index >= UCR_OUT_BUTTON_COUNT) return;
-    _outButtonList[index] = name;
-}
-
-void UCR::addOutputAxis(const char *name, int index)
-{
-    if (index >= UCR_OUT_AXIS_COUNT) return;
-    _outAxisList[index] = name;
-}
-
-void UCR::addOutputDelta(const char *name, int index)
-{
-    if (index >= UCR_OUT_DELTA_COUNT) return;
-    _outDeltaList[index] = name;
-}
-
-void UCR::addOutputEvent(const char *name, int index)
-{
-    if (index >= UCR_OUT_EVENT_COUNT) return;
-    _outEventList[index] = name;
-}
-
-bool UCR::readButton(int index){
-    if (index >= UCR_OUT_BUTTON_COUNT) return 0;
-    return outButtonData[index];
-}
-
-short UCR::readAxis(int index){
-    if (index >= UCR_OUT_AXIS_COUNT) return 0;
-    return outAxisData[index];
-}
-
-short UCR::readDelta(int index){
-    if (index >= UCR_OUT_DELTA_COUNT) return 0;
-    return outDeltaData[index];
-}
-
-bool UCR::readEvent(int index){
-    // IDEA: Add option to use event as flag (that should be cleared, this allows us to call multiple .update()s/receive new packets without missing an event). This won't help in case of dropped UDP packets, as we'll never know about the event.
-    if (index >= UCR_OUT_EVENT_COUNT) return 0;
-    return outEventData[index];
-}
-
 bool UCR::update()
 {
     _lastUpdateMillis = millis();
@@ -260,23 +161,28 @@ bool UCR::update()
 }
 
 void UCR::resetValues(){
+    // Clear input data
+    memset(inButtonData, 0, sizeof(inButtonData));
+    memset(inAxisData, 0, sizeof(inAxisData));
+    memset(inDeltaData, 0, sizeof(inDeltaData));
+    memset(inEventData, 0, sizeof(inEventData));
+    // Clear output data
     memset(outButtonData, 0, sizeof(outButtonData));
     memset(outAxisData, 0, sizeof(outAxisData));
     memset(outDeltaData, 0, sizeof(outDeltaData));
     memset(outEventData, 0, sizeof(outEventData));
 }
 
+// Network functions
+
 void addDescriptorList(JsonObject *doc, const char *name, const char **list, int size)
 {
     JsonArray descriptor_array = doc->createNestedArray(name);
     for (int i = 0; i < size; i++)
     {
-        if (list[i] != nullptr)
-        {
-            JsonObject descriptor = descriptor_array.createNestedObject();
-            descriptor["k"] = list[i];
-            descriptor["v"] = i;
-        }
+        JsonObject descriptor = descriptor_array.createNestedObject();
+        descriptor["k"] = list[i];
+        descriptor["v"] = i;
     }
 }
 
@@ -322,17 +228,17 @@ bool UCR::receiveUdp()
 
             // Add inputs
             JsonObject response_in = response.createNestedObject("i");
-            addDescriptorList(&response_in, IN_BUTTONS, _inButtonList, UCR_IN_BUTTON_COUNT);
-            addDescriptorList(&response_in, IN_AXES, _inAxisList, UCR_IN_AXIS_COUNT);
-            addDescriptorList(&response_in, IN_DELTAS, _inDeltaList, UCR_IN_DELTA_COUNT);
-            addDescriptorList(&response_in, IN_EVENTS, _inEventList, UCR_IN_EVENT_COUNT);
+            addDescriptorList(&response_in, IN_BUTTONS, _inButtonList, inButtonCount);
+            addDescriptorList(&response_in, IN_AXES, _inAxisList, inAxisCount);
+            addDescriptorList(&response_in, IN_DELTAS, _inDeltaList, inDeltaCount);
+            addDescriptorList(&response_in, IN_EVENTS, _inEventList, inEventCount);
 
             // Add outputs
             JsonObject response_out = response.createNestedObject("o");
-            addDescriptorList(&response_out, OUT_BUTTONS, _outButtonList, UCR_OUT_BUTTON_COUNT);
-            addDescriptorList(&response_out, OUT_AXES, _outAxisList, UCR_OUT_AXIS_COUNT);
-            addDescriptorList(&response_out, OUT_DELTAS, _outDeltaList, UCR_OUT_DELTA_COUNT);
-            addDescriptorList(&response_out, OUT_EVENTS, _outEventList, UCR_OUT_EVENT_COUNT);
+            addDescriptorList(&response_out, OUT_BUTTONS, _outButtonList, outButtonCount);
+            addDescriptorList(&response_out, OUT_AXES, _outAxisList, outAxisCount);
+            addDescriptorList(&response_out, OUT_DELTAS, _outDeltaList, outDeltaCount);
+            addDescriptorList(&response_out, OUT_EVENTS, _outEventList, outEventCount);
         }
 
         if (msgType == MSG_SET_OUTPUTS)
@@ -425,10 +331,7 @@ void addInput(JsonDocument *doc, const char *name, const char **list, bool *valu
     JsonArray input_array = doc->createNestedArray(name);
     for (int i = 0; i < size; i++)
     {
-        if (list[i] != nullptr)
-        {
-            input_array.add(value[i] ? 0 : 1);
-        }
+        input_array.add(value[i] ? 0 : 1);
     }
 }
 
@@ -437,10 +340,7 @@ void addInput(JsonDocument *doc, const char *name, const char **list, short *val
     JsonArray input_array = doc->createNestedArray(name);
     for (int i = 0; i < size; i++)
     {
-        if (list[i] != nullptr)
-        {
-            input_array.add(value[i]);
-        }
+        input_array.add(value[i]);
     }
 }
 
@@ -474,10 +374,10 @@ bool UCR::updateSubscriber()
     response["MsgType"] = MSG_UPDATE_SUBSCRIBER;
     response["hostname"] = _hostString;
 
-    addInput(&response, IN_BUTTONS, _inButtonList, inButtonData, UCR_IN_BUTTON_COUNT);
-    addInput(&response, IN_AXES, _inAxisList, inAxisData, UCR_IN_AXIS_COUNT);
-    addInput(&response, IN_DELTAS, _inDeltaList, inDeltaData, UCR_IN_DELTA_COUNT);
-    addInput(&response, IN_EVENTS, _inEventList, inEventData, UCR_IN_EVENT_COUNT);
+    addInput(&response, IN_BUTTONS, _inButtonList, inButtonData, inButtonCount);
+    addInput(&response, IN_AXES, _inAxisList, inAxisData, inAxisCount);
+    addInput(&response, IN_DELTAS, _inDeltaList, inDeltaData, inDeltaCount);
+    addInput(&response, IN_EVENTS, _inEventList, inEventData, inEventCount);
 
     response["seq"] = _sequenceNo++;
     Udp.beginPacket(_remoteIP, _remotePort);
@@ -493,4 +393,116 @@ bool UCR::updateSubscriber()
     _inputDirty = 0;
 
     return true;
+}
+
+// Input / output management functions
+
+uint8_t UCR::addInputButton(const char *name)
+{
+    if (inButtonCount >= UCR_IN_BUTTON_COUNT_MAX) return UCR_IN_BUTTON_COUNT_MAX;
+    _inButtonList[inButtonCount] = name;
+    return inButtonCount++;
+}
+
+uint8_t UCR::addInputAxis(const char *name)
+{
+    if (inAxisCount >= UCR_IN_AXIS_COUNT_MAX) return UCR_IN_AXIS_COUNT_MAX;
+    _inAxisList[inAxisCount] = name;
+    return inAxisCount++;
+}
+
+uint8_t UCR::addInputDelta(const char *name)
+{
+    if (inDeltaCount >= UCR_IN_DELTA_COUNT_MAX) return UCR_IN_DELTA_COUNT_MAX;
+    _inDeltaList[inDeltaCount] = name;
+    return inDeltaCount++;
+}
+
+uint8_t UCR::addInputEvent(const char *name)
+{
+    if (inEventCount >= UCR_IN_EVENT_COUNT_MAX) return UCR_IN_EVENT_COUNT_MAX;
+    _inEventList[inEventCount] = name;
+    return inEventCount++;
+}
+
+void UCR::writeButton(int index, bool value){
+    if (index >= inButtonCount) return;
+    if (inButtonData[index] == value) return;
+    inButtonData[index] = value;
+    _inputDirty = 1;
+    if(_bindMode) sendBindResponse(index, "b", value);
+}
+
+void UCR::writeAxis(int index, short value){
+    if (index >= inAxisCount) return;
+    if (inAxisData[index] == value) return;
+    inAxisData[index] = value;
+    _inputDirty = 1;
+    if(_bindMode) sendBindResponse(index, "a", value);
+}
+
+void UCR::writeDelta(int index, short value){
+    if (index >= inDeltaCount) return;
+    if (inDeltaData[index] == value) return;
+    inDeltaData[index] = value;
+    _inputDirty = 1;
+    if(_bindMode) sendBindResponse(index, "d", value);
+}
+
+void UCR::writeEvent(int index, bool value){
+    // IDEA: Add option to use event as flag (that should be cleared, this allows us to call multiple .update()s/receive new packets without missing an event). This won't help in case of dropped UDP packets, as we'll never know about the event.
+    if (index >= inEventCount) return;
+    if (inEventData[index] == value) return;
+    inEventData[index] = value;
+    _inputDirty = 1;
+    if(_bindMode) sendBindResponse(index, "e", value);
+}
+
+uint8_t UCR::addOutputButton(const char *name)
+{
+    if (outButtonCount >= UCR_OUT_BUTTON_COUNT_MAX) return UCR_OUT_BUTTON_COUNT_MAX;
+    _outButtonList[outButtonCount] = name;
+    return outButtonCount++;
+}
+
+uint8_t UCR::addOutputAxis(const char *name)
+{
+    if (outAxisCount >= UCR_OUT_AXIS_COUNT_MAX) return UCR_OUT_AXIS_COUNT_MAX;
+    _outAxisList[outAxisCount] = name;
+    return outAxisCount++;
+}
+
+uint8_t UCR::addOutputDelta(const char *name)
+{
+    if (outDeltaCount >= UCR_OUT_DELTA_COUNT_MAX) return UCR_OUT_DELTA_COUNT_MAX;
+    _outDeltaList[outDeltaCount] = name;
+    return outDeltaCount++;
+}
+
+uint8_t UCR::addOutputEvent(const char *name)
+{
+    if (outEventCount >= UCR_OUT_EVENT_COUNT_MAX) return UCR_OUT_EVENT_COUNT_MAX;
+    _outEventList[outEventCount] = name;
+    return outEventCount++;
+}
+
+bool UCR::readButton(int index){
+    if (index >= outButtonCount) return 0;
+    return outButtonData[index];
+}
+
+short UCR::readAxis(int index){
+    if (index >= outButtonCount) return 0;
+    return outAxisData[index];
+}
+
+short UCR::readDelta(int index){
+    if (index >= outDeltaCount) return 0;
+    return outDeltaData[index];
+}
+
+bool UCR::readEvent(int index){
+    // IDEA: Add option to use event as flag (that should be cleared, this allows us to call multiple .update()s/receive new packets without missing an event). This won't help in case of dropped UDP packets, as we'll never know about the event.
+    if (index >= outEventCount) return 0;
+    return outEventData[index];
 }

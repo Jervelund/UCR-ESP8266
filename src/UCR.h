@@ -4,15 +4,15 @@
 
 #include <WiFiUdp.h>
 
-#define UCR_IN_BUTTON_COUNT 64
-#define UCR_IN_AXIS_COUNT 32
-#define UCR_IN_DELTA_COUNT 32
-#define UCR_IN_EVENT_COUNT 32
+#define UCR_IN_BUTTON_COUNT_MAX 64
+#define UCR_IN_AXIS_COUNT_MAX 32
+#define UCR_IN_DELTA_COUNT_MAX 32
+#define UCR_IN_EVENT_COUNT_MAX 32
 
-#define UCR_OUT_BUTTON_COUNT 64
-#define UCR_OUT_AXIS_COUNT 32
-#define UCR_OUT_DELTA_COUNT 32
-#define UCR_OUT_EVENT_COUNT 32
+#define UCR_OUT_BUTTON_COUNT_MAX 64
+#define UCR_OUT_AXIS_COUNT_MAX 32
+#define UCR_OUT_DELTA_COUNT_MAX 32
+#define UCR_OUT_EVENT_COUNT_MAX 32
 
 #define UCR_ANTIFLOOD_MS 5
 #define UCR_KEEPALIVE_MS 10000
@@ -33,21 +33,22 @@ public:
   void setSubscriber(IPAddress address, uint16_t port);
   void setTimeout(unsigned long timeout);
   bool sendBindResponse(int index, char *type, short value);
+  bool connectionAlive();
 
-  void addInputButton(const char *name, int index);
-  void addInputAxis(const char *name, int index);
-  void addInputDelta(const char *name, int index);
-  void addInputEvent(const char *name, int index);
+  uint8_t addInputButton(const char *name);
+  uint8_t addInputAxis(const char *name);
+  uint8_t addInputDelta(const char *name);
+  uint8_t addInputEvent(const char *name);
 
   void writeButton(int index, bool value);
   void writeAxis(int index, short value);
   void writeDelta(int index, short value);
   void writeEvent(int index, bool value);
 
-  void addOutputButton(const char *name, int index);
-  void addOutputAxis(const char *name, int index);
-  void addOutputDelta(const char *name, int index);
-  void addOutputEvent(const char *name, int index);
+  uint8_t addOutputButton(const char *name);
+  uint8_t addOutputAxis(const char *name);
+  uint8_t addOutputDelta(const char *name);
+  uint8_t addOutputEvent(const char *name);
 
   bool readButton(int index);
   short readAxis(int index);
@@ -82,25 +83,35 @@ private:
   bool _bindMode = false;
   bool _subscribed = false;
 
-  const char *_inButtonList[UCR_IN_BUTTON_COUNT] = {0};
-  const char *_inAxisList[UCR_IN_AXIS_COUNT] = {0};
-  const char *_inDeltaList[UCR_IN_DELTA_COUNT] = {0};
-  const char *_inEventList[UCR_IN_EVENT_COUNT] = {0};
+  uint8_t inButtonCount = 0;
+  uint8_t inAxisCount = 0;
+  uint8_t inDeltaCount = 0;
+  uint8_t inEventCount = 0;
 
-  bool inButtonData[UCR_IN_BUTTON_COUNT] = {0};
-  short inAxisData[UCR_IN_AXIS_COUNT] = {0};
-  short inDeltaData[UCR_IN_DELTA_COUNT] = {0};
-  bool inEventData[UCR_IN_EVENT_COUNT] = {0};
+  const char *_inButtonList[UCR_IN_BUTTON_COUNT_MAX] = {0};
+  const char *_inAxisList[UCR_IN_AXIS_COUNT_MAX] = {0};
+  const char *_inDeltaList[UCR_IN_DELTA_COUNT_MAX] = {0};
+  const char *_inEventList[UCR_IN_EVENT_COUNT_MAX] = {0};
 
-  const char *_outButtonList[UCR_OUT_BUTTON_COUNT] = {0};
-  const char *_outAxisList[UCR_OUT_AXIS_COUNT] = {0};
-  const char *_outDeltaList[UCR_OUT_DELTA_COUNT] = {0};
-  const char *_outEventList[UCR_OUT_EVENT_COUNT] = {0};
+  bool inButtonData[UCR_IN_BUTTON_COUNT_MAX] = {0};
+  short inAxisData[UCR_IN_AXIS_COUNT_MAX] = {0};
+  short inDeltaData[UCR_IN_DELTA_COUNT_MAX] = {0};
+  bool inEventData[UCR_IN_EVENT_COUNT_MAX] = {0};
 
-  bool outButtonData[UCR_OUT_BUTTON_COUNT] = {0};
-  short outAxisData[UCR_OUT_AXIS_COUNT] = {0};
-  short outDeltaData[UCR_OUT_DELTA_COUNT] = {0};
-  bool outEventData[UCR_OUT_EVENT_COUNT] = {0};
+  uint8_t outButtonCount = 0;
+  uint8_t outAxisCount = 0;
+  uint8_t outDeltaCount = 0;
+  uint8_t outEventCount = 0;
+
+  const char *_outButtonList[UCR_OUT_BUTTON_COUNT_MAX] = {0};
+  const char *_outAxisList[UCR_OUT_AXIS_COUNT_MAX] = {0};
+  const char *_outDeltaList[UCR_OUT_DELTA_COUNT_MAX] = {0};
+  const char *_outEventList[UCR_OUT_EVENT_COUNT_MAX] = {0};
+
+  bool outButtonData[UCR_OUT_BUTTON_COUNT_MAX] = {0};
+  short outAxisData[UCR_OUT_AXIS_COUNT_MAX] = {0};
+  short outDeltaData[UCR_OUT_DELTA_COUNT_MAX] = {0};
+  bool outEventData[UCR_OUT_EVENT_COUNT_MAX] = {0};
 
   char incomingPacketBuffer[255];
 };
